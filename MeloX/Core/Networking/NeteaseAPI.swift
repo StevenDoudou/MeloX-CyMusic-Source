@@ -389,7 +389,7 @@ final class NeteaseAPI {
             do {
                 let runtime = JavaScriptSourceRuntime()
                 defer { runtime.invalidate() }
-                let track = try runtime.resolve(
+                let track = try await runtime.resolve(
                     script: source.script,
                     songName: song?.name ?? String(id),
                     artist: song?.artistText ?? "",
