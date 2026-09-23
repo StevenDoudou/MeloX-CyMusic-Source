@@ -9,7 +9,7 @@ struct MusicSourcesSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Import") {
+            Section {
                 TextField("Script URL", text: $scriptURL)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
@@ -27,6 +27,8 @@ struct MusicSourcesSettingsView: View {
                     }
                 Button("Add pasted script", action: addPastedScript)
                     .disabled(scriptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } header: {
+                Text("Import")
             } footer: {
                 Text("Supports synchronous CyMusic getMusicUrl scripts in this build. Async LX scripts are not yet supported.")
             }

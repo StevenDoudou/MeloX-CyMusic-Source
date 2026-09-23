@@ -387,17 +387,15 @@ final class NeteaseAPI {
     ) async throws -> PlaybackSource {
         if let source = MeloXSourceStore.shared.activeSource {
             do {
-                let track = try await Task.detached(priority: .userInitiated) {
-                    let runtime = JavaScriptSourceRuntime()
-                    defer { runtime.invalidate() }
-                    return try runtime.resolve(
-                        script: source.script,
-                        songName: song?.name ?? String(id),
-                        artist: song?.artistText ?? "",
-                        songID: String(id),
-                        quality: quality.apiLevel
-                    )
-                }.value
+                let runtime = JavaScriptSourceRuntime()
+                defer { runtime.invalidate() }
+                let track = try runtime.resolve(
+                    script: source.script,
+                    songName: song?.name ?? String(id),
+                    artist: song?.artistText ?? "",
+                    songID: String(id),
+                    quality: quality.apiLevel
+                )
                 return PlaybackSource(
                     url: track.url,
                     bitrate: track.bitrate,
@@ -502,6 +500,7 @@ final class NeteaseAPI {
             // compatibility path, so preserve that behavior here as well.
             return try await playbackSource(
                 id: song.id,
+                song: song,
                 quality: quality,
                 availability: song.audioAvailability
             )
