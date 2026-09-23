@@ -1,0 +1,18 @@
+name: Build unsigned MeloX IPA
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build unsigned IPA
+        run: |
+          chmod +x build_ios_unsigned.sh
+          MELOX_BUILD_BUNDLE_VARIANT=legacy ./build_ios_unsigned.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MeloX-CyMusic-Source-unsigned-ipa
+          path: build/MeloX-iOS-unsigned.ipa
