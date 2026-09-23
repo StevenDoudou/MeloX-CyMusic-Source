@@ -40,7 +40,7 @@ struct MusicSourcesSettingsView: View {
                         HStack(spacing: 12) {
                             Button { store.select(source.enabled ? nil : source) } label: {
                                 Image(systemName: source.enabled ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(source.enabled ? .tint : .secondary)
+                                    .foregroundStyle(source.enabled ? Color.accentColor : Color.secondary)
                             }.buttonStyle(.plain)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(source.name).font(.body.weight(.medium))
