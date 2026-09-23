@@ -361,16 +361,19 @@ final class NeteaseAPI {
     }
 
     func playbackSource(id: Int) async throws -> PlaybackSource {
-        try await playbackSource(
+        let song = try? await songDetails(ids: [id]).first
+        return try await playbackSource(
             id: id,
+            song: song,
             quality: playbackQuality,
-            availability: .unknown
+            availability: song?.audioAvailability ?? .unknown
         )
     }
 
     func playbackSource(for song: Song) async throws -> PlaybackSource {
         try await playbackSource(
             id: song.id,
+            song: song,
             quality: playbackQuality,
             availability: song.audioAvailability
         )
@@ -378,9 +381,35 @@ final class NeteaseAPI {
 
     private func playbackSource(
         id: Int,
+        song: Song?,
         quality: MusicQuality,
         availability: SongAudioAvailability
     ) async throws -> PlaybackSource {
+        if let source = MeloXSourceStore.shared.activeSource {
+            do {
+                let track = try await Task.detached(priority: .userInitiated) {
+                    let runtime = JavaScriptSourceRuntime()
+                    defer { runtime.invalidate() }
+                    return try runtime.resolve(
+                        script: source.script,
+                        songName: song?.name ?? String(id),
+                        artist: song?.artistText ?? "",
+                        songID: String(id),
+                        quality: quality.apiLevel
+                    )
+                }.value
+                return PlaybackSource(
+                    url: track.url,
+                    bitrate: track.bitrate,
+                    format: track.format,
+                    quality: quality
+                )
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // A failing custom source falls through to the original provider.
+            }
+        }
         do {
             for candidate in quality.playbackCandidates(
                 for: availability

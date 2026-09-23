@@ -20,13 +20,14 @@ struct MeloXSourceTrack: Codable, Sendable, Equatable {
 }
 
 enum MeloXSourceError: LocalizedError {
-    case emptyScript, runtimeUnavailable, invalidResult, requestFailed
+    case emptyScript, runtimeUnavailable, invalidResult, requestFailed, unsupportedLXScript
     var errorDescription: String? {
         switch self {
         case .emptyScript: return "音源脚本为空"
         case .runtimeUnavailable: return "音源运行环境不可用"
         case .invalidResult: return "音源返回结果无效"
         case .requestFailed: return "音源请求失败"
+        case .unsupportedLXScript: return "当前版本暂不支持异步 LX 音源协议，请使用 CyMusic 原生 getMusicUrl 格式"
         }
     }
 }

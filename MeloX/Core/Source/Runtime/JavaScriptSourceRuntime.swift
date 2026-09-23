@@ -71,19 +71,40 @@ final class JavaScriptSourceRuntime {
         #endif
     }
 
-    /// Resolves an LX source by dispatching the protocol's request event.
-    func resolve(script: String, songName: String, artist: String, quality: String) throws -> MeloXSourceTrack {
+    func resolve(script: String, songName: String, artist: String, songID: String, quality: String) async throws -> MeloXSourceTrack {
+        guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MeloXSourceError.emptyScript }
         #if canImport(JavaScriptCore)
+        guard !script.trimmingCharacters(in: .whitespaces).hasPrefix("/*") else { throw MeloXSourceError.unsupportedLXScript }
+        let module = try evaluate("(function(){var module={exports:{}};var exports=module.exports;\(script);return module.exports;})()"
+        if let getURL = module.objectForKeyedSubscript("getMusicUrl"), !getURL.isUndefined {
+            let result = getURL.call(withArguments: [songName, artist, songID, quality])
+            let raw = try awaitResult(result, timeout: configuration.timeout)
+            if let raw, let url = URL(string: raw), ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+                return MeloXSourceTrack(url: url, bitrate: nil, format: nil, lyric: nil, artwork: nil)
+            }
+            throw MeloXSourceError.invalidResult
+        }
         try load(script: script)
-        let payload: [String: Any] = ["action": "musicUrl", "info": ["songname": songName, "artist": artist, "songmid": "", "quality": quality]]
+        let payload: [String: Any] = ["source": "tx", "action": "musicUrl", "info": ["type": quality, "musicInfo": ["id": songID, "songmid": songID, "title": songName, "name": songName, "singer": artist, "artist": artist, "source": "tx", "hash": songID]]]
         let result = try requestEventSync(name: "request", payload: payload)
-        guard let value = result as? [String: Any] else { throw MeloXSourceError.invalidResult }
-        let raw = (value["url"] as? String) ?? (value["src"] as? String)
-        guard let raw, let url = URL(string: raw) else { throw MeloXSourceError.invalidResult }
-        return MeloXSourceTrack(url: url, bitrate: value["bitrate"] as? Int, format: value["format"] as? String, lyric: value["lyric"] as? String, artwork: (value["pic"] as? String).flatMap(URL.init(string:)))
+        guard let value = result as? [String: Any], let raw = (value["url"] as? String) ?? (value["data"] as? [String: Any])?["url"], let url = URL(string: raw), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { throw MeloXSourceError.invalidResult }
+        return MeloXSourceTrack(url: url, bitrate: value["bitrate"] as? Int, format: value["format"] as? String, lyric: nil, artwork: nil)
         #else
         throw MeloXSourceError.runtimeUnavailable
         #endif
+    }
+
+    static func metadata(for script: String) -> (id: String, name: String, author: String, version: String) {
+        let lines = script.components(separatedBy: .newlines)
+        var values = [String: String]()
+        for line in lines.prefix(24) {
+            let clean = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            let content = clean.hasPrefix("*") ? String(clean.dropFirst()).trimmingCharacters(in: .whitespaces) : clean
+            guard content.hasPrefix("@"), let space = content.firstIndex(of: " ") else { continue }
+            values[String(content[content.index(after: content.startIndex)..<space]).lowercased()] = String(content[content.index(after: space)...]).trimmingCharacters(in: .whitespaces)
+        }
+        let fallback = script.data(using: .utf8).map { String($0.hashValue, radix: 16) } ?? UUID().uuidString
+        return (values["id"] ?? fallback, values["name"] ?? "Imported source", values["author"] ?? "", values["version"] ?? "")
     }
 
     #if canImport(JavaScriptCore)
@@ -116,6 +137,27 @@ final class JavaScriptSourceRuntime {
         guard let value = context.evaluateScript(source), !value.isUndefined else { throw MeloXSourceError.invalidResult }
         if context.exception != nil { throw MeloXSourceError.invalidResult }
         return value
+    }
+
+    private func awaitResult(_ value: JSValue?, timeout: TimeInterval) async throws -> String? {
+        guard let value else { return nil }
+        if !value.hasProperty("then") { return value.toString() }
+        return try await withThrowingTaskGroup(of: String?.self) { group in
+            group.addTask {
+                try await withCheckedThrowingContinuation { continuation in
+                    let resolve: @convention(block) (JSValue) -> Void = { result in continuation.resume(returning: result.isString ? result.toString() : nil) }
+                    let reject: @convention(block) (JSValue) -> Void = { error in continuation.resume(throwing: NSError(domain: "MeloXSource", code: 1, userInfo: [NSLocalizedDescriptionKey: error.toString() ?? "Script rejected"])) }
+                    value.invokeMethod("then", withArguments: [resolve, reject])
+                }
+            }
+            group.addTask {
+                try await Task.sleep(for: .seconds(timeout))
+                throw NSError(domain: "MeloXSource", code: 2, userInfo: [NSLocalizedDescriptionKey: "Source timed out"])
+            }
+            guard let result = try await group.next() else { throw MeloXSourceError.invalidResult }
+            group.cancelAll()
+            return result
+        }
     }
 
     private func requestEventSync(name: String, payload: [String: Any]) throws -> Any? {

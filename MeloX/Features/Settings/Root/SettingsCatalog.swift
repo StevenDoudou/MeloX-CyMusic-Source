@@ -3,6 +3,7 @@ import Foundation
 enum SettingsRoute: Hashable {
     case accountHome
     case playback
+    case musicSources
     case playerAppearance
     case lyrics
     case systemPlayback
@@ -50,6 +51,13 @@ enum SettingsCatalog {
                     subtitle: L10n.string("ui.settings.catalog.playback.subtitle"),
                     systemImage: "waveform",
                     keywords: L10n.keywords("ui.settings.catalog.playback.keywords")
+                ),
+                SettingsCatalogItem(
+                    route: .musicSources,
+                    title: "Music sources",
+                    subtitle: "Import and choose playback URL scripts",
+                    systemImage: "waveform.path",
+                    keywords: ["music source", "script", "音源", "脚本"]
                 ),
                 SettingsCatalogItem(
                     route: .playerAppearance,
