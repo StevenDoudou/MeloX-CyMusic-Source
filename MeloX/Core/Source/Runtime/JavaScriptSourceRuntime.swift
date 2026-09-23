@@ -75,7 +75,7 @@ final class JavaScriptSourceRuntime {
         guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MeloXSourceError.emptyScript }
         #if canImport(JavaScriptCore)
         guard !script.trimmingCharacters(in: .whitespaces).hasPrefix("/*") else { throw MeloXSourceError.unsupportedLXScript }
-        let module = try evaluate("(function(){var module={exports:{}};var exports=module.exports;\(script);return module.exports;})()"
+        let module = try evaluate("(function(){var module={exports:{}};var exports=module.exports;\(script);return module.exports;})()")
         if let getURL = module.objectForKeyedSubscript("getMusicUrl"), !getURL.isUndefined {
             let result = getURL.call(withArguments: [songName, artist, songID, quality])
             let raw = try awaitResult(result, timeout: configuration.timeout)

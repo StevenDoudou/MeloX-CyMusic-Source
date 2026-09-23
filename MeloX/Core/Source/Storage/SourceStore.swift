@@ -16,7 +16,7 @@ final class MeloXSourceStore {
         load()
     }
 
-    var activeSource: MeloXSource? { sources.first(where: \\.enabled) }
+    var activeSource: MeloXSource? { sources.first(where: \.enabled) }
 
     func upsert(_ source: MeloXSource) {
         sources.removeAll { $0.id == source.id }
