@@ -13,7 +13,7 @@ final class JavaScriptSourceRuntime {
         let payload: [String: Any] = ["songname": songName, "artist": artist, "songmid": "", "quality": quality]
         let data = try JSONSerialization.data(withJSONObject: payload)
         let encoded = String(data: data, encoding: .utf8) ?? "{}"
-        let source = """(function(){var module={exports:{}};var exports=module.exports;\(script);var fn=module.exports.getMusicUrl||module.exports.getUrl;if(typeof fn!=='function')throw new Error('missing getMusicUrl');return fn(\(encoded));})()"""
+        let source = "(function(){var module={exports:{}};var exports=module.exports;\\(script);var fn=module.exports.getMusicUrl||module.exports.getUrl;if(typeof fn!=='function')throw new Error('missing getMusicUrl');return fn(\\(encoded));})()"
         guard let value = context.evaluateScript(source)?.toObject() as? [String: Any] else { throw MeloXSourceError.invalidResult }
         guard let rawURL = (value["url"] as? String) ?? (value["src"] as? String), let url = URL(string: rawURL) else { throw MeloXSourceError.invalidResult }
         return MeloXSourceTrack(url: url, bitrate: value["bitrate"] as? Int, format: value["format"] as? String, lyric: value["lyric"] as? String, artwork: (value["pic"] as? String).flatMap(URL.init(string:)))
